@@ -69,7 +69,6 @@ public class RPCClient {
 	
 	public static String RPC(String callId, String server, byte[] outbuf){
 		DatagramSocket rpc_socket = null;
-		
 		/*
 		 * Making a request to the server
 		 * Need to run through a list of servers and make a request to each one
