@@ -118,9 +118,32 @@ public class ServerViewTable {
 		
 		do{
 			randomIP = key_list.get(r.nextInt(key_list.size()));
-			System.out.println("RandomIP = " + randomIP);
+			//System.out.println("RandomIP = " + randomIP);
 		} while(randomIP.equals(SSMServlet.network_address)); 
 			
+		return randomIP;
+	}
+	
+	public String getServerToGossipWith(){
+		
+		String randomIP = null;
+		ArrayList<String> key_list = new ArrayList<String>();
+		Random r = new Random();
+		
+		for(String key : serverViewTable.keySet()){
+			if(serverViewTable.get(key).getStatus()){
+				key_list.add(key);
+			}
+		}
+		
+		if(key_list.size() <= 1) return "DB";
+		
+		key_list.add("DB");
+		do{
+			randomIP = key_list.get(r.nextInt(key_list.size()));
+			//System.out.println("RandomIP = " + randomIP);
+		} while(randomIP.equals(SSMServlet.network_address));
+		
 		return randomIP;
 	}
 }

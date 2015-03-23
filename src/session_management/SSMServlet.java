@@ -92,6 +92,10 @@ public class SSMServlet extends HttpServlet {
         RPCServer rpc_server = new RPCServer();
         rpc_server.start();
         
+        System.out.println("SERVLET Starting Gossip Thread...");
+        Gossip gossip = new Gossip();
+        gossip.start();
+        
         /*
          * Test for sessionWrite
          * */
@@ -318,32 +322,21 @@ public class SSMServlet extends HttpServlet {
 		 * Pick a random server from the view, for now lets make it 127.0.0.1
 		 * String server = random_entry_from_view
 		 */
-		String server = serverViewTable.getRandomKey();
 		
-		if(server == "NULL"){
-			System.out.println("SERVER Could not find a backup");
-			return "NULL";
-		}
-		
-		sessionData.expiresOn = System.currentTimeMillis() + TIMEOUT + DELTA;
-		String result = RPCClient.SessionWriteClient(sessionId, sessionData.toString(), server).trim();
-		
-		if(result.equals("OK")){
-			return server;
-		}
-		else{
-			return "NULL";
-		}
-	}
-	
-	private void mergeViewTable(){
-		/*
-		 * Pick up a random IP address, and call the RPC mergeViewsClient
-		 */
-		String server = "127.0.0.1";
-		String remote_server_view_string = RPCClient.ExchangeViewsClient(serverViewTable.toString(), server).trim();
-		if(!remote_server_view_string.equals("ERROR") || !remote_server_view_string.equals("NULL")){
-			serverViewTable.mergeViews(remote_server_view_string);
+		while(true){
+			String server = serverViewTable.getRandomKey();
+			
+			if(server == "NULL"){
+				System.out.println("SERVER Could not find a backup");
+				return "NULL";
+			}
+			
+			sessionData.expiresOn = System.currentTimeMillis() + TIMEOUT + DELTA;
+			String result = RPCClient.SessionWriteClient(sessionId, sessionData.toString(), server).trim();
+			
+			if(result.equals("OK")){
+				return server;
+			}
 		}
 	}
 	
