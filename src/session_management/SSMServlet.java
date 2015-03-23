@@ -279,16 +279,33 @@ public class SSMServlet extends HttpServlet {
 	
 	private SessionData readRemoteSessionData(String sessionId, String primary, String backup){
 		String new_session_string = null;
+		boolean contact_backup = false;
 		
 		if(!primary.equals("NULL")){
+			//There is a primary that we can contact
 			new_session_string = RPCClient.SessionReadClient(sessionId, primary).trim();
 			if(new_session_string.equals("NULL") || new_session_string.equals("ERROR")){
-				if(!backup.equals("NULL")){
-					new_session_string = RPCClient.SessionReadClient(sessionId, backup).trim();
-					if(new_session_string.equals("NULL") || new_session_string.equals("ERROR")){
-						return null;
-					}
+				/*
+				 * Primary was down
+				 * Contact backup
+				 */
+				contact_backup = true;
+			}
+		}
+		else{
+			contact_backup = true;
+		}
+		
+		if(contact_backup){
+			if(!backup.equals("NULL")){
+				new_session_string = RPCClient.SessionReadClient(sessionId, primary).trim();
+				if(new_session_string.equals("NULL") || new_session_string.equals("ERROR")){
+					//Backup is down, return null
+					return null;
 				}
+			}
+			else{
+				return null;
 			}
 		}
 		
