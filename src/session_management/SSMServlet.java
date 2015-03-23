@@ -97,6 +97,9 @@ public class SSMServlet extends HttpServlet {
         gossip.start();
         
         /*
+         * TestCases can be removed!
+         */
+        /*
          * Test for sessionWrite
          * */
         /*
