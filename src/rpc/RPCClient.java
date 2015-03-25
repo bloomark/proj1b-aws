@@ -16,7 +16,7 @@ import session_management.SessionData;
 
 public class RPCClient {
 	public static int RPC_SERVER_PORT = 5300;
-	public static int SOCKET_TIMEOUT = 2 * 1000;
+	public static int SOCKET_TIMEOUT = 100; //milliseconds
 	public static int MAX_PACKET_LENGTH = 512;
 	public static String DELIMITER = SessionData.DELIMITER;
 	

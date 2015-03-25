@@ -24,6 +24,7 @@ public class Gossip extends Thread{
 		while(true){
 			String server = SSMServlet.serverViewTable.getServerToGossipWith();
 			System.out.println("GOSSIP With " + server);
+			SSMServlet.serverViewTable.upsertViewTableEntry(SSMServlet.network_address, true, System.currentTimeMillis());
 			if(server.equals("DB")){
 				/*
 				 * Gossip with DB

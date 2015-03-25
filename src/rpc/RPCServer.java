@@ -73,6 +73,7 @@ public class RPCServer extends Thread{
 					case 2:
 						//Exchange Views
 						// [2] - Remote server's view
+						SSMServlet.serverViewTable.upsertViewTableEntry(SSMServlet.network_address, true, System.currentTimeMillis());
 						System.out.println("SERVER Received viewMerge request from server at " + recv_pkt.getAddress().getHostAddress() + "for view ("  + request_fields[2] +")");
 						response_value = mergeViews(request_fields[2]);
 						break;

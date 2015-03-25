@@ -8,7 +8,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.Timer;
 //import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,9 +43,12 @@ import rpc.RPCServer;
 public class SSMServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 
-	public static long DELTA = 1 * 1000;
+	//Cookie details
 	public static long TIMEOUT = 10 * 1000; //Timeout in milliseconds
 	public static String COOKIE_NAME = "CS5300PROJ1SESSION";
+	
+	//Session Stuff
+	public static long DELTA = 1 * 1000;
 	public static String globalSessionId = "0";
 	public static ConcurrentHashMap<String, SessionData> sessionMap = new ConcurrentHashMap<String, SessionData>();
 	public static long cleanerDaemonInterval = 60 * 1000;
@@ -51,7 +56,7 @@ public class SSMServlet extends HttpServlet {
 	public static String network_address = null;
 	public static String DELIMITER = SessionData.DELIMITER;
 	
-	//AWS Stuff
+	//AWS stuff
 	public static String accessKey = "AKIAJQ5Q3LCIYWRDWZTQ";
 	public static String secretKey = "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";
 	public static String domain = "View";
@@ -60,6 +65,10 @@ public class SSMServlet extends HttpServlet {
 	//Connect to simpleDB
 	public static AWSCredentials awsCredentials = new BasicAWSCredentials(SSMServlet.accessKey, SSMServlet.secretKey);
     public static AmazonSimpleDB db = new AmazonSimpleDBClient(awsCredentials);
+    
+    //Fields for K-Resiliency
+    public static int NUMBER_BACKUPS = 2;
+    public static int NUMBER_BACKUP_REQUESTS = NUMBER_BACKUPS + 1;
 	
 	@Override
 	public void init(ServletConfig config) throws ServletException {
@@ -72,9 +81,6 @@ public class SSMServlet extends HttpServlet {
     public SSMServlet() {
         super();
         // TODO Auto-generated constructor stub
-        SessionData newTableEntry = new SessionData(1, "deadbeef!", System.currentTimeMillis() + 84000000);
-        sessionMap.put("100", newTableEntry);
-        
         do{
         	getNetworkAddress();
         } while(network_address == null);
@@ -94,56 +100,7 @@ public class SSMServlet extends HttpServlet {
         
         System.out.println("SERVLET Starting Gossip Thread...");
         Gossip gossip = new Gossip();
-        gossip.start();
-        
-        /*
-         * TestCases can be removed!
-         */
-        /*
-         * Test for sessionWrite
-         * */
-        /*
-        SessionData write_data = new SessionData(99, "Foo", System.currentTimeMillis());
-        String write_response = writeRemoteSessionData("105", write_data);
-        if(write_response != null && write_response.equals("OK")){
-        	System.out.println("TEST Object at 105 is " + sessionMap.get("105").toString());
-        }
-        else{
-        	System.out.println("TEST sessionWrite FAILED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        }//*/
-        
-        /*
-         * Test for sessionRead
-         */
-        /*
-        SessionData new_entry = new SessionData(100, "Fubar", System.currentTimeMillis());
-        sessionMap.put("100", new_entry);
-        SessionData read_response = readRemoteSessionData("100", "127.0.0.1", "null");
-        if(read_response == null){
-        	System.out.println("TEST sessionRead FAILED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        } else{
-        	System.out.println("TEST Received " + read_response.toString());
-        }
-        
-        read_response = readRemoteSessionData("101", "127.0.0.1", "null");
-        if(read_response != null){
-        	System.out.println("TEST sessionRead FAILED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        }//*/
-        
-        /*
-         * Test for mergeView
-         */
-        ///*
-        /*ServerViewTableEntry new_view_entry = new ServerViewTableEntry(false, 10);
-        serverViewTable.serverViewTable.put("10.0.0.1", new_view_entry);
-        new_view_entry = new ServerViewTableEntry(true, 5);
-        serverViewTable.serverViewTable.put("10.0.0.2", new_view_entry);
-        new_view_entry = new ServerViewTableEntry(true, System.currentTimeMillis());
-        serverViewTable.serverViewTable.put("10.0.0.4", new_view_entry);
-        
-        System.out.println(serverViewTable.toString());
-        //mergeViewTable();
-        //System.out.println(serverViewTable.toString());//*/
+        gossip.start();        
     }
 
 	/**
@@ -158,6 +115,7 @@ public class SSMServlet extends HttpServlet {
 		String backup = null;
 		String cookieContent = null;
 		Cookie cookie = null;
+		String[] backup_servers = null;
 		
 		PrintWriter o = response.getWriter();
 		String action = request.getParameter("btn-submit");
@@ -178,23 +136,24 @@ public class SSMServlet extends HttpServlet {
 			if(cookie != null){
 				//A cookie exists
 				createNewCookie = false;
-				//System.out.println("A cookie exists");
 				cookieContent = cookie.getValue();
-				String[] stringList = cookieContent.split("_");
+				//String[] stringList = cookieContent.split(DELIMITER);
+				String[] stringList = cookieContent.split(DELIMITER, 4);
 				sessionID = stringList[0];
 				version = Integer.parseInt(stringList[1]);
 				version++;
 				primary = stringList[2].trim();
-				backup = stringList[3].trim();
+				backup_servers = stringList[3].trim().split(DELIMITER);
 				
-				if(!primary.equals(network_address) && !backup.equals(network_address)){
+				if(!primary.equals(network_address) && !stringList[3].trim().contains(network_address)){
 					sessionMap.remove(sessionID);
-					SessionData remote_entry = readRemoteSessionData(sessionID, primary, backup);
-					if(remote_entry == null){
-						createNewCookie = true;
-					}
-					else{
-						sessionMap.put(sessionID, remote_entry);
+					for(String backup_server : backup_servers){
+						if(backup_server.trim().equals("NULL")) continue;
+						
+						SessionData remote_entry = readRemoteSessionData(sessionID, backup_server);
+						
+						if(remote_entry == null) continue;
+						else sessionMap.put(sessionID, remote_entry);
 					}
 				}
 				
@@ -230,19 +189,31 @@ public class SSMServlet extends HttpServlet {
 								Cookie session = new Cookie(COOKIE_NAME, cookieContent);
 								session.setMaxAge(0);
 								response.addCookie(session);
-								o.println("<h1>Logged out</h1>");
+								o.println("Logged out!");
 								return;
 							}
 						}
 					}
 					else{
 						//Cookie has expired, create a new one
-						createNewCookie = true;
+						sessionMap.remove(sessionID);
+						cookieContent = sessionID + DELIMITER + version + DELIMITER + "NULL" + DELIMITER + "NULL";
+						Cookie session = new Cookie(COOKIE_NAME, cookieContent);
+						session.setMaxAge(0);
+						response.addCookie(session);
+						o.println("Timed out!");
+						return;
 					}
 				}
 				else{
 					//Unknown cookie, create a new one
-					createNewCookie = true;
+					sessionMap.remove(sessionID);
+					cookieContent = sessionID + DELIMITER + version + DELIMITER + "NULL" + DELIMITER + "NULL";
+					Cookie session = new Cookie(COOKIE_NAME, cookieContent);
+					session.setMaxAge(0);
+					response.addCookie(session);
+					o.println("Failed to retrieve session info. :(");
+					return;
 				}
 			}
 			
@@ -256,6 +227,7 @@ public class SSMServlet extends HttpServlet {
 			}
 			
 			backup = writeRemoteSessionData(sessionID, sessionMap.get(sessionID));
+			System.out.println("BACKUP = " + backup);
 			
 			cookieContent = sessionID + DELIMITER + version + DELIMITER + network_address + DELIMITER + backup;
 			Cookie session = new Cookie(COOKIE_NAME, cookieContent);
@@ -284,36 +256,19 @@ public class SSMServlet extends HttpServlet {
 		return network_address + "." + globalSessionId;
 	}
 	
-	private SessionData readRemoteSessionData(String sessionId, String primary, String backup){
+	private SessionData readRemoteSessionData(String sessionId, String server){
 		String new_session_string = null;
 		boolean contact_backup = false;
 		
-		if(!primary.equals("NULL")){
+		if(!server.equals("NULL")){
 			//There is a primary that we can contact
-			new_session_string = RPCClient.SessionReadClient(sessionId, primary).trim();
+			new_session_string = RPCClient.SessionReadClient(sessionId, server).trim();
 			if(new_session_string.equals("NULL") || new_session_string.equals("ERROR")){
-				/*
-				 * Primary was down
-				 * Contact backup
-				 */
-				contact_backup = true;
+				return null;
 			}
 		}
 		else{
-			contact_backup = true;
-		}
-		
-		if(contact_backup){
-			if(!backup.equals("NULL")){
-				new_session_string = RPCClient.SessionReadClient(sessionId, primary).trim();
-				if(new_session_string.equals("NULL") || new_session_string.equals("ERROR")){
-					//Backup is down, return null
-					return null;
-				}
-			}
-			else{
-				return null;
-			}
+			return null;
 		}
 		
 		//We have session data in a string, convert into an object of sessionData and return
@@ -326,21 +281,54 @@ public class SSMServlet extends HttpServlet {
 		 * String server = random_entry_from_view
 		 */
 		
-		while(true){
-			String server = serverViewTable.getRandomKey();
-			
-			if(server == "NULL"){
-				System.out.println("SERVER Could not find a backup");
-				return "NULL";
-			}
-			
-			sessionData.expiresOn = System.currentTimeMillis() + TIMEOUT + DELTA;
-			String result = RPCClient.SessionWriteClient(sessionId, sessionData.toString(), server).trim();
-			
-			if(result.equals("OK")){
-				return server;
+		String backup_server_string = new String();
+		int successful_backups = 0;
+		
+		ArrayList<String> key_list = new ArrayList<String>();
+		
+		for(String key : ServerViewTable.serverViewTable.keySet()){
+			if(ServerViewTable.serverViewTable.get(key).getStatus()){
+				key_list.add(key);
 			}
 		}
+		key_list.remove(network_address);
+		System.out.println("KEY LIST = " + key_list.toString());
+		
+		if(key_list.size() <= 0){
+			for(int i=0; i<NUMBER_BACKUPS; i++){
+				backup_server_string += "NULL_";
+			}
+			backup_server_string = backup_server_string.substring(0, backup_server_string.length()-1);
+			System.out.println("RETURNING " + backup_server_string);
+			return backup_server_string;
+		}
+		
+		long seed = System.nanoTime();
+		Collections.shuffle(key_list, new Random(seed));
+		
+		System.out.println("SHUFFLED KEY LIST = " + key_list.toString());
+		
+		int i=0;
+		while(successful_backups < NUMBER_BACKUPS && i < key_list.size()){
+			sessionData.expiresOn = System.currentTimeMillis() + TIMEOUT + DELTA;
+			String result = RPCClient.SessionWriteClient(sessionId, sessionData.toString(), key_list.get(i)).trim();
+			
+			if(result.equals("OK")){
+				backup_server_string += key_list.get(i) + DELIMITER;
+				successful_backups++;
+			} 
+			i++;
+		}
+		
+		if(successful_backups < NUMBER_BACKUPS){
+			for(i=0; i<NUMBER_BACKUPS-successful_backups; i++)
+				backup_server_string += "NULL" + DELIMITER;
+		}
+		
+		if (backup_server_string.length() > 0) 
+			backup_server_string = backup_server_string.substring(0, backup_server_string.length()-1);
+		
+		return backup_server_string;
 	}
 	
 	public void getNetworkAddress(){
