@@ -39,7 +39,6 @@ import rpc.RPCServer;
 /**
  * Servlet implementation class SSMServlet
  */
-//@WebServlet(value = "/SSMServlet", loadOnStartup = 1)
 public class SSMServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 
@@ -227,11 +226,11 @@ public class SSMServlet extends HttpServlet {
 			}
 			
 			backup = writeRemoteSessionData(sessionID, sessionMap.get(sessionID));
-			System.out.println("BACKUP = " + backup);
+			//System.out.println("BACKUP = " + backup);
 			
 			cookieContent = sessionID + DELIMITER + version + DELIMITER + network_address + DELIMITER + backup;
 			Cookie session = new Cookie(COOKIE_NAME, cookieContent);
-			session.setMaxAge((int)(TIMEOUT/1000));
+			//session.setMaxAge((int)(TIMEOUT/1000));
 			response.addCookie(session);
 		}
 		
@@ -292,21 +291,21 @@ public class SSMServlet extends HttpServlet {
 			}
 		}
 		key_list.remove(network_address);
-		System.out.println("KEY LIST = " + key_list.toString());
+		//System.out.println("KEY LIST = " + key_list.toString());
 		
 		if(key_list.size() <= 0){
 			for(int i=0; i<NUMBER_BACKUPS; i++){
 				backup_server_string += "NULL_";
 			}
 			backup_server_string = backup_server_string.substring(0, backup_server_string.length()-1);
-			System.out.println("RETURNING " + backup_server_string);
+			//System.out.println("RETURNING " + backup_server_string);
 			return backup_server_string;
 		}
 		
 		long seed = System.nanoTime();
 		Collections.shuffle(key_list, new Random(seed));
 		
-		System.out.println("SHUFFLED KEY LIST = " + key_list.toString());
+		//System.out.println("SHUFFLED KEY LIST = " + key_list.toString());
 		
 		int i=0;
 		while(successful_backups < NUMBER_BACKUPS && i < key_list.size()){

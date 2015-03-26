@@ -76,7 +76,7 @@ public class ServerViewTable {
 			}
 		}
 		
-		System.out.println("Table after mreging - " + this.toString());
+		System.out.println("VIEW TABLE after merging - " + this.toString());
 	}
 	
 	private ServerViewTableEntry constructTableEntryHelper(String entry)
