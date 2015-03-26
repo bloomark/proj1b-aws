@@ -43,14 +43,14 @@ public class SSMServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 
 	//Cookie details
-	public static long TIMEOUT = 10 * 1000; //Timeout in milliseconds
+	public static long TIMEOUT = 30 * 1000; //Timeout in milliseconds
 	public static String COOKIE_NAME = "CS5300PROJ1SESSION";
 	
 	//Session Stuff
 	public static long DELTA = 1 * 1000;
 	public static String globalSessionId = "0";
 	public static ConcurrentHashMap<String, SessionData> sessionMap = new ConcurrentHashMap<String, SessionData>();
-	public static long cleanerDaemonInterval = 60 * 1000;
+	public static long cleanerDaemonInterval = 150 * 1000;
 	public static ServerViewTable serverViewTable = new ServerViewTable();
 	public static String network_address = null;
 	public static String DELIMITER = SessionData.DELIMITER;
@@ -195,13 +195,7 @@ public class SSMServlet extends HttpServlet {
 					}
 					else{
 						//Cookie has expired, create a new one
-						sessionMap.remove(sessionID);
-						cookieContent = sessionID + DELIMITER + version + DELIMITER + "NULL" + DELIMITER + "NULL";
-						Cookie session = new Cookie(COOKIE_NAME, cookieContent);
-						session.setMaxAge(0);
-						response.addCookie(session);
-						o.println("Timed out!");
-						return;
+						createNewCookie = true;
 					}
 				}
 				else{
@@ -230,12 +224,10 @@ public class SSMServlet extends HttpServlet {
 			
 			cookieContent = sessionID + DELIMITER + version + DELIMITER + network_address + DELIMITER + backup;
 			Cookie session = new Cookie(COOKIE_NAME, cookieContent);
-			//session.setMaxAge((int)(TIMEOUT/1000));
+			session.setMaxAge((int)(TIMEOUT/1000));
 			response.addCookie(session);
 		}
 		
-		//request.setAttribute("sessionID", sessionID);
-		//request.setAttribute("version", version);
 		request.setAttribute("expiresOn", new Timestamp(sessionMap.get(sessionID).getExpiresOn()));
 		request.setAttribute("message", sessionMap.get(sessionID).getMessage());
 		request.getRequestDispatcher("index.jsp").forward(request, response);

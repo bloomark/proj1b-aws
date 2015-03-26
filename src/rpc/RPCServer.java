@@ -104,7 +104,6 @@ public class RPCServer extends Thread{
 				/*
 				 * Map has relevant data, just return toString of the data
 				 */
-				System.out.println("SERVER In sessionRead #" + sessionId + " is " + SSMServlet.sessionMap.get(sessionId).toString());
 				return SSMServlet.sessionMap.get(sessionId).toString();
 			}
 			else {
