@@ -70,7 +70,7 @@ public class SSMServlet extends HttpServlet {
     public static int NUMBER_BACKUP_REQUESTS = NUMBER_BACKUPS + 1;
     
     //Frontend data
-    public static String backupServer = "NEW SESSION";
+    public static String backupServer = "NULL";
     public static long discardTime = 0;
 	
 	@Override
@@ -148,10 +148,6 @@ public class SSMServlet extends HttpServlet {
 				primary = stringList[2].trim();
 				backup_servers = stringList[3].trim().split(DELIMITER);
 				
-				if(primary.equals(network_address)){
-					backupServer = "PRIMARY " + network_address; 
-				}
-				
 				if(!primary.equals(network_address) && !stringList[3].trim().contains(network_address)){
 					sessionMap.remove(sessionID);
 					for(String backup_server : backup_servers){
@@ -162,6 +158,9 @@ public class SSMServlet extends HttpServlet {
 						if(remote_entry == null) continue;
 						else sessionMap.put(sessionID, remote_entry);
 					}
+				}
+				else{
+					backupServer = "PRIMARY " + network_address;
 				}
 				
 				if(sessionMap.containsKey(sessionID)){
@@ -225,7 +224,7 @@ public class SSMServlet extends HttpServlet {
 				expiresOn = System.currentTimeMillis() + TIMEOUT;
 				SessionData newTableEntry = new SessionData(1, "Hello, User!", expiresOn);
 				sessionMap.put(sessionID, newTableEntry);
-				backupServer = "NULL";
+				backupServer = "NEW SESSION";
 			}
 			
 			backup = writeRemoteSessionData(sessionID, sessionMap.get(sessionID));
@@ -315,7 +314,7 @@ public class SSMServlet extends HttpServlet {
 		int i=0;
 		while(successful_backups < NUMBER_BACKUPS && i < key_list.size()){
 			sessionData.expiresOn = System.currentTimeMillis() + TIMEOUT + DELTA;
-			discardTime = sessionData.expiresOn;
+			discardTime = sessionData.expiresOn + DELTA;
 			String result = RPCClient.SessionWriteClient(sessionId, sessionData.toString(), key_list.get(i)).trim();
 			
 			if(result.equals("OK")){
