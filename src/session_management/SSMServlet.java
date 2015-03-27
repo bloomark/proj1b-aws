@@ -47,7 +47,7 @@ public class SSMServlet extends HttpServlet {
 	public static String COOKIE_NAME = "CS5300PROJ1SESSION";
 	
 	//Session Stuff
-	public static long DELTA = 1 * 1000;
+	public static long DELTA = 1 * 100;
 	public static String globalSessionId = "0";
 	public static ConcurrentHashMap<String, SessionData> sessionMap = new ConcurrentHashMap<String, SessionData>();
 	public static long cleanerDaemonInterval = 150 * 1000;
@@ -68,6 +68,10 @@ public class SSMServlet extends HttpServlet {
     //Fields for K-Resiliency
     public static int NUMBER_BACKUPS = 2;
     public static int NUMBER_BACKUP_REQUESTS = NUMBER_BACKUPS + 1;
+    
+    //Frontend data
+    public static String backupServer = "NEW SESSION";
+    public static long discardTime = 0;
 	
 	@Override
 	public void init(ServletConfig config) throws ServletException {
@@ -144,6 +148,10 @@ public class SSMServlet extends HttpServlet {
 				primary = stringList[2].trim();
 				backup_servers = stringList[3].trim().split(DELIMITER);
 				
+				if(primary.equals(network_address)){
+					backupServer = "PRIMARY " + network_address; 
+				}
+				
 				if(!primary.equals(network_address) && !stringList[3].trim().contains(network_address)){
 					sessionMap.remove(sessionID);
 					for(String backup_server : backup_servers){
@@ -217,6 +225,7 @@ public class SSMServlet extends HttpServlet {
 				expiresOn = System.currentTimeMillis() + TIMEOUT;
 				SessionData newTableEntry = new SessionData(1, "Hello, User!", expiresOn);
 				sessionMap.put(sessionID, newTableEntry);
+				backupServer = "NULL";
 			}
 			
 			backup = writeRemoteSessionData(sessionID, sessionMap.get(sessionID));
@@ -228,6 +237,9 @@ public class SSMServlet extends HttpServlet {
 			response.addCookie(session);
 		}
 		
+		request.setAttribute("backupServer", backupServer);
+		if(discardTime==0) request.setAttribute("discardTime", "No backup created");
+		else request.setAttribute("discardTime", new Timestamp(discardTime));
 		request.setAttribute("expiresOn", new Timestamp(sessionMap.get(sessionID).getExpiresOn()));
 		request.setAttribute("message", sessionMap.get(sessionID).getMessage());
 		request.getRequestDispatcher("index.jsp").forward(request, response);
@@ -263,6 +275,7 @@ public class SSMServlet extends HttpServlet {
 		}
 		
 		//We have session data in a string, convert into an object of sessionData and return
+		backupServer = "BACKUP " + server;
 		return new SessionData(new_session_string);
 	}
 	
@@ -278,7 +291,7 @@ public class SSMServlet extends HttpServlet {
 		ArrayList<String> key_list = new ArrayList<String>();
 		
 		for(String key : ServerViewTable.serverViewTable.keySet()){
-			if(ServerViewTable.serverViewTable.get(key).getStatus()){
+			if(ServerViewTable.serverViewTable 	.get(key).getStatus()){
 				key_list.add(key);
 			}
 		}
@@ -302,6 +315,7 @@ public class SSMServlet extends HttpServlet {
 		int i=0;
 		while(successful_backups < NUMBER_BACKUPS && i < key_list.size()){
 			sessionData.expiresOn = System.currentTimeMillis() + TIMEOUT + DELTA;
+			discardTime = sessionData.expiresOn;
 			String result = RPCClient.SessionWriteClient(sessionId, sessionData.toString(), key_list.get(i)).trim();
 			
 			if(result.equals("OK")){

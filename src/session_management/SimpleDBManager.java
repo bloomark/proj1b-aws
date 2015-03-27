@@ -14,13 +14,11 @@ public class SimpleDBManager {
 	public static String domain = SSMServlet.domain;
 	
 	public static boolean insertIntoSimpleDB(String address, String status, long lastSeen){
-		ReplaceableAttribute replaceableAttribute = new ReplaceableAttribute()
-		.withName(attribute)
+		ReplaceableAttribute replaceableAttribute = new ReplaceableAttribute().withName(attribute)
 		.withValue(status + "+" + String.valueOf(lastSeen))
 		.withReplace(true);
 
-		SSMServlet.db.putAttributes(new PutAttributesRequest().withDomainName(domain)
-				.withItemName(address)
+		SSMServlet.db.putAttributes(new PutAttributesRequest().withDomainName(domain).withItemName(address)
 				.withAttributes(replaceableAttribute));
 		
 		return true;

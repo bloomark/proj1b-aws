@@ -68,16 +68,20 @@
             </div>
             <div class='row'>
                 <dl>
+                	<dt>Backup Server</dt>
+                		<dd>${backupServer}</dd>
                     <dt>Session ID</dt>
-                    <dd id='sessionId'></dd>
+                    	<dd id='sessionId'></dd>
                     <dt>Version No.</dt>
-                    <dd id='version'></dd>
+                    	<dd id='version'></dd>
                     <dt>Expires on</dt>
-                    <dd>${expiresOn}</dd>
+                    	<dd>${expiresOn}</dd>
+                    <dt>Discard time</dt>
+                    	<dd>${discardTime}</dd>
                     <dt>Primary</dt>
-                    <dd id='primary'></dd>
+                    	<dd id='primary'></dd>
                     <dt>Backup</dt>
-                    <dd id='backup'></dd>
+                    	<dd id='backup'></dd>
                 </dl>
             </div>
         </form>
